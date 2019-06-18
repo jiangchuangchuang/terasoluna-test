@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.management.btkoucn.domain.repository.account.AccountRepository">
+
+    <resultMap id="accountResultMap" type="Account">
+        <id property="userId" column="user_id" />
+        <result property="username" column="user_name" />
+        <result property="birthDay" column="birth_day" />
+        <result property="address" column="address" />
+        <result property="tenNum" column="ten_num" />
+        <result property="password" column="password" />
+        <result property="passwordHistory" column="password_history" />
+        <result property="loginStatus" column="login_status" />
+        <result property="loginFailedCount" column="login_failed_count" />
+        <result property="accountUpdateTime" column="account_Update_Time" />
+        <result property="passwordExpired" column="password_expired" />
+        <collection property="roles" ofType="Role">
+            <id property="userId" column="user_id"/>
+            <id property="role" column="role"/>
+            <result property="roleUpdateTime" column="role_update_time"/>
+        </collection>
+    </resultMap>
+
+    <select id="findOne" parameterType="String" resultMap="accountResultMap">
+        SELECT
+            t1.user_id,
+            t1.user_name,
+            t1.birth_day,
+            t1.address,
+            t1.ten_num,
+            t1.password,
+            t1.password_history,
+            t1.login_status,
+            t1.login_failed_count,
+            TO_CHAR(t1.update_time,'yyyy-MM-dd hh24:mi:ss') AS account_Update_Time,
+            t2.role,
+            TO_CHAR(t2.update_time,'yyyy-MM-dd hh24:mi:ss') AS role_update_time,
+            t1.password_expired
+        FROM
+            t_account t1,
+            t_role t2
+        WHERE
+        	t1.user_id = t2.user_id
+        AND t1.user_id = #{userId}
+    </select>
+
+	<select id="findByCondition" parameterType="AccountSearchCondition" resultMap="accountResultMap">
+    	SELECT
+            t1.user_id,
+            t1.user_name,
+            t1.birth_day,
+            t1.address,
+            t1.ten_num,
+            t1.password,
+            t1.password_history,
+            t1.login_status,
+            t1.login_failed_count,
+            t2.role
+        FROM
+        	( SELECT t.user_id,
+        	 		 user_name,
+        	 		 birth_day,
+        	 		 address,
+        	 		 ten_num,
+        	 		 password,
+        	 		 password_history,
+        	 		 login_status,
+        	 		 login_failed_count       	 
+        	    FROM t_account t
+        	    <where>
+					<if test="user.userId != null and user.userId != ''">
+						AND t.user_id = #{user.userId}
+					</if>
+					<if test="user.username != null and user.username != ''">
+						AND user_name LIKE #{user.username} || '%' ESCAPE '~'
+					</if>
+					<if test="user.birthDay != null and user.birthDay != ''">
+			            <![CDATA[
+			            AND birth_day = #{user.birthDay}
+			            ]]>
+					</if>
+					<if test="user.address != null and user.address != ''">
+						AND address LIKE '%' || #{user.address} || '%' ESCAPE '~'
+					</if>
+					<if test="user.tenNum != null and user.tenNum != ''">
+						AND ten_num LIKE #{user.tenNum} || '%' ESCAPE '~'
+					</if>
+					<if test="user.loginStatus == null or user.loginStatus == ''">
+						AND login_status != 'DEL'
+					</if>
+					<if test="user.loginStatus != null and user.loginStatus != ''">
+						AND login_status =#{user.loginStatus}
+					</if>		         
+					<if test="user.role != null and user.role != ''">
+						AND EXISTS (SELECT t3.user_id 
+					          FROM t_role t3 
+					         WHERE t3.user_id = t.user_id	
+						AND t3.role =#{user.role}
+					        )			
+					</if>					
+				</where>
+		 			ORDER BY CAST(t.user_id AS integer)
+					LIMIT
+			            #{pageable.pageSize}
+			        OFFSET
+			            #{pageable.offset}
+        	)t1,
+            ( SELECT user_id,
+            		 role
+            	FROM t_role
+            	<where>
+					<if test="user.role != null and user.role != ''">
+						AND role =#{user.role}
+					</if>
+            	</where>
+            	ORDER BY CAST(user_id AS integer)
+            )t2
+		<where>
+			t1.user_id = t2.user_id
+		</where>
+	</select>
+	
+	<select id="countByCondition" parameterType="AccountSearchCondition" resultType="java.lang.Long">
+    	SELECT
+            COUNT(1)
+        FROM
+            t_account t1
+		<where>
+			EXISTS (SELECT t2.user_id 
+			          FROM t_role t2 
+			         WHERE t1.user_id = t2.user_id			         
+			<if test="role != null and role != ''">
+				AND t2.role =#{role}			
+			</if>
+			        )
+			<if test="userId != null and userId != ''">
+				AND t1.user_id = #{userId}
+			</if>
+			<if test="username != null and username != ''">
+				AND t1.user_name LIKE #{username} || '%' ESCAPE '~'
+			</if>
+			<if test="birthDay != null and birthDay != ''">
+	            <![CDATA[
+	            AND t1.birth_day = #{birthDay}
+	            ]]>
+			</if>
+			<if test="address != null and address != ''">
+				AND t1.address LIKE '%' || #{address} || '%' ESCAPE '~'
+			</if>
+			<if test="tenNum != null and tenNum != ''">
+				AND t1.ten_num LIKE #{tenNum} || '%' ESCAPE '~'
+			</if>
+			<if test="loginStatus == null or loginStatus == ''">
+				AND login_status != 'DEL'
+			</if>
+			<if test="loginStatus != null and loginStatus != ''">
+				AND t1.login_status =#{loginStatus}
+			</if>
+		</where>
+	</select>
+    
+    <update id="updateLoginStutas" parameterType="String">
+    	UPDATE t_account
+    	SET    login_status = 'ACTV',
+    		   login_failed_count = 0,
+    	       update_time = now()
+    	WHERE  user_id=#{userId}
+    </update>  
+    
+    <update id="updateLoginFailedCount" parameterType="String">
+    	UPDATE t_account
+    	SET    login_failed_count = login_failed_count + 1,
+    	       update_time = now()
+    	WHERE  user_id=#{userId}
+    </update>
+    
+    <update id="updateLoginFailedLocked" parameterType="String">
+    	UPDATE t_account
+    	SET    login_status ='LOCKED',
+    	       login_failed_count =0,
+    	       update_time = now()
+    	WHERE  user_id=#{userId}
+    </update>
+    
+    <update id="updatePassword" parameterType="Account">
+    	UPDATE t_account
+    	SET    login_status = 'ACTV',
+    	       login_failed_count =0,
+    	       password_history = password,
+    	       password = #{password},
+    	       password_expired = #{passwordExpired},
+    	       update_time = now()
+    	WHERE  user_id=#{userId}
+    </update>
+    
+    <select id="checkUpdateTime" parameterType="String" resultType="java.lang.Long">
+        SELECT
+            COUNT(1)
+        FROM
+            t_account t1
+        WHERE
+        	t1.user_id = #{userId}
+        AND TO_CHAR(t1.update_time,'yyyy-MM-dd hh24:mi:ss') = #{accountUpdateTime}
+    </select>
+    
+    <update id="updateAccount" parameterType="Account">
+    	UPDATE t_account
+    	SET    user_name = #{account.username},
+    	       birth_day = #{account.birthDay},
+    	       address = #{account.address},
+    	       ten_num = #{account.tenNum},
+		<if test="account.password != null and account.password != ''">
+			   login_status = (CASE WHEN login_status = 'ACTV' THEN 'ACTV' ELSE 'INIT' END),
+    	       login_failed_count =0,
+    	       password_history = password,
+    	       password = #{account.password},
+    	       password_expired = #{account.passwordExpired},
+		</if> 
+    	       update_time = now()
+    	WHERE  user_id=#{account.userId}
+    </update>
+    
+    <select id="checkAccountExist" parameterType="String" resultType="java.lang.Long">
+        SELECT
+            COUNT(1)
+        FROM
+            t_account
+        WHERE
+            user_id = #{userId}
+    </select>
+    
+    <insert id="insertAccount" parameterType="Account">
+    	INSERT INTO t_account 
+    		  (user_id,user_name,birth_day,address,ten_num,password,login_status,password_expired,login_failed_count)
+    	VALUES(#{userId},#{username},#{birthDay},#{address},#{tenNum},#{password},'INIT',#{passwordExpired},0)
+    </insert>
+    
+    <delete id="deleteAccount" parameterType="String">
+    	UPDATE t_account
+    	SET    login_status = 'DEL',
+    	       update_time = now()
+    	WHERE  user_id=#{userId}
+    </delete>
+    
+    <select id="checkRoleExist" parameterType="String" resultType="java.lang.Long">
+        SELECT
+            COUNT(1)
+        FROM
+            t_role
+        WHERE
+            user_id = #{userId}
+        AND role = #{role}
+    </select>
+    
+    <update id="updateRoleAllEnabled" parameterType="String">
+    	UPDATE t_role
+    	SET    delete_flag = '1',
+    	       update_time = now()
+    	WHERE  user_id=#{userId}
+    </update>
+    
+    <insert id="insertRole" parameterType="String">
+    	INSERT INTO t_role (user_id,role,update_time,delete_flag)
+    	VALUES(#{userId},#{role},now(),'0')
+    </insert>
+    
+    <delete id="deleteRole" parameterType="String">
+    	DELETE FROM  t_role
+    	WHERE  user_id=#{userId}
+    </delete>
+</mapper>

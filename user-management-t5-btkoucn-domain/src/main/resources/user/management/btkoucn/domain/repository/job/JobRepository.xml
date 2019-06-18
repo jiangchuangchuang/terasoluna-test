@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.management.btkoucn.domain.repository.job.JobRepository">
+
+    <resultMap id="jobResultMap" type="Job">
+        <id property="jobSeq" column="job_seq" />
+        <result property="jobName" column="job_name" />
+        <result property="returnValue" column="return_value" />
+        <result property="jobType" column="job_type" />
+        <result property="updateTime" column="update_time" />
+        <result property="addTime" column="add_time" />
+    </resultMap>
+
+    <select id="searchJobs" resultMap="jobResultMap">
+        SELECT
+            t1.job_seq,
+            t1.job_name,
+            t1.return_value,
+            t1.job_type,
+            TO_CHAR(t1.add_time,'yyyy/MM/dd hh24:mi:ss') as add_time,
+            TO_CHAR(t1.update_time,'yyyy/MM/dd hh24:mi:ss') as update_time
+        FROM
+            t_job t1
+      ORDER BY t1.job_seq
+    </select>
+
+    <select id="countJobs" resultType="java.lang.Long">
+        SELECT
+            count(1)
+        FROM
+            t_job t1
+    </select>
+    
+    <insert id="insertJob" parameterType="String">
+    	INSERT INTO t_job (job_name,return_value,job_type)
+    	VALUES(#{jobName},#{returnValue},#{jobType})
+    </insert>
+	
+</mapper>

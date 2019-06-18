@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sec="http://www.springframework.org/schema/security"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+    ">
+    
+	<bean id="authenticationSuccessHandler" class="user.management.btkoucn.app.security.handler.MyAuthenticationSuccessHandler" /> 
+	<bean id="authenticationFailureHandler" class="user.management.btkoucn.app.security.handler.MyAuthenticationFailureHandler" /> 
+	
+	<sec:http pattern="/resources/**" security="none" />
+	<sec:http>
+		<sec:form-login login-page="/login/loginPage"
+			login-processing-url="/authenticate"
+			authentication-success-handler-ref="authenticationSuccessHandler"
+			authentication-failure-handler-ref="authenticationFailureHandler"
+			username-parameter="userId" password-parameter="password" />
+		<sec:logout logout-success-url="/login/loginPage" delete-cookies="JSESSIONID" />
+		
+		<sec:intercept-url pattern="/login/loginSuccess" access="isAuthenticated()" />
+		<sec:intercept-url pattern="/login/**" access="permitAll" />
+		<sec:intercept-url pattern="/user/insert**" access="hasRole('ADMIN')"/>
+		<sec:intercept-url pattern="/user/update**" access="hasRole('ADMIN')"/>
+		<sec:intercept-url pattern="/user/delete**" access="hasRole('ADMIN')"/>
+		<sec:intercept-url pattern="/**" access="isAuthenticated()" />
+
+		<sec:access-denied-handler ref="accessDeniedHandler" />
+		<sec:custom-filter ref="userIdMDCPutFilter" after="ANONYMOUS_FILTER" />
+		<sec:session-management />
+	</sec:http>
+
+	<sec:authentication-manager>
+		<sec:authentication-provider
+			user-service-ref="myUserDetailsService">
+			<sec:password-encoder ref="passwordEncoder" />
+		</sec:authentication-provider>
+	</sec:authentication-manager>
+	
+	<!-- 
+	<bean id="authenticationFailureHandler"
+	    class="org.springframework.security.web.authentication.ExceptionMappingAuthenticationFailureHandler">
+	    <property name="defaultFailureUrl" value="/login/login?error" />
+	    <property name="exceptionMappings">
+	        <props>
+	            <prop key="org.springframework.security.authentication.BadCredentialsException">
+	                /login/login?badCredentials
+	            </prop>
+	            <prop key="org.springframework.security.core.userdetails.UsernameNotFoundException">
+	                /login/login?usernameNotFound
+	            </prop>
+	            <prop key="org.springframework.security.authentication.DisabledException">
+	                /login/login?disabled
+	            </prop>
+	        </props>
+	    </property>
+	</bean>
+	 -->
+	
+	<!-- CSRF Protection -->
+	<bean id="accessDeniedHandler"
+		class="org.springframework.security.web.access.DelegatingAccessDeniedHandler">
+		<constructor-arg index="0">
+			<map>
+				<entry
+					key="org.springframework.security.web.csrf.InvalidCsrfTokenException">
+					<bean
+						class="org.springframework.security.web.access.AccessDeniedHandlerImpl">
+						<property name="errorPage"
+							value="/WEB-INF/views/common/error/invalidCsrfTokenError.jsp" />
+					</bean>
+				</entry>
+				<entry
+					key="org.springframework.security.web.csrf.MissingCsrfTokenException">
+					<bean
+						class="org.springframework.security.web.access.AccessDeniedHandlerImpl">
+						<property name="errorPage"
+							value="/WEB-INF/views/common/error/missingCsrfTokenError.jsp" />
+					</bean>
+				</entry>
+			</map>
+		</constructor-arg>
+		<constructor-arg index="1">
+			<bean
+				class="org.springframework.security.web.access.AccessDeniedHandlerImpl">
+				<property name="errorPage"
+					value="/WEB-INF/views/common/error/accessDeniedError.jsp" />
+			</bean>
+		</constructor-arg>
+	</bean>
+
+	<!-- Put UserID into MDC -->
+	<bean id="userIdMDCPutFilter"
+		class="org.terasoluna.gfw.security.web.logging.UserIdMDCPutFilter">
+	</bean>
+
+</beans>
